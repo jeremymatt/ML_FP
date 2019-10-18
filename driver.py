@@ -66,9 +66,9 @@ EndDate = '12/22/2016'
 #StartDate = '3/30/2017'
 #EndDate = '4/2/2017'
 Station = {}
-Station[0] = 15
-Station[1] = 22 
-Station[2] = 44
+Station[0] = 0
+Station[1] = 1 
+Station[2] = 2
 #Station[3] = 19
 #Station[4] = 24
 #Station[5] = 30 
@@ -99,6 +99,8 @@ station_QQ_plots(stations,start,end,var)
 for station in ALLdata.WSdata:
     station.data_binned.set_index('datetime_bins',inplace=True)
     
+print('test')
+    
 times = []
 #times.append('2017-04-01 00:00:00')
 #times.append('2017-04-01 08:00:00')
@@ -106,7 +108,7 @@ times = []
 #times.append('2017-04-01 20:00:00')
 
 times.append('2017-01-01 00:00:00')
-times.append('2017-01-01 08:00:00')
+times.append('2017-01-01 09:00:00')
 times.append('2017-01-01 12:00:00')
 times.append('2017-01-01 20:00:00')
 
