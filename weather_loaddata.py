@@ -184,10 +184,7 @@ class WEATHER_LOADDATA:
             #If the station timestamps are text, set flag to false
             in_datetime_object = True
             if type(station.data_binned['datetime_bins'][0]) == str:
-                print('not in datetime')
                 in_datetime_object = False
-            else:
-                print('is in datetime')
             
             #If the name starts with 'Station and the times are not in UTC
             #then convert to UTC

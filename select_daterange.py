@@ -22,9 +22,12 @@ def select_daterange(input_dataframe,Start,End,mode):
             'seasonal' (all data between start and end ignoring year)
     """
 
-    #Convert start and end to strings
-    Start = str(Start[0])+'-'+str(Start[1])+'-'+str(Start[2])
-    End = str(End[0])+'-'+str(End[1])+'-'+str(End[2])
+    #Convert start and end to strings if they are not already in that format
+    if len(Start)>1:
+        Start = str(Start[0])+'-'+str(Start[1])+'-'+str(Start[2])
+        
+    if len(End)>1:
+            End = str(End[0])+'-'+str(End[1])+'-'+str(End[2])
     
     #make sure the input dataframe has datetime index
     input_dataframe.index = pd.to_datetime(input_dataframe.index)

@@ -19,6 +19,11 @@ import gen_adj_mat as gam
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import PlotDataRange as PDR
+import scipy.stats as sps
+from statsmodels.graphics.gofplots import qqplot
+from select_daterange import select_daterange
+from station_QQ_plots import station_QQ_plots
+from spatial_QQ_plots import spatial_QQ_plots
 
 #Initialize:
 ALLdata = LD()
@@ -33,7 +38,10 @@ ALLdata.ConvertTimeStrToDatetime()
 #ALLdata.Check_DST()
 
 
-#MST_offset = 7
+
+
+
+#MST_offset = 0
 #ALLdata.ConvertTimeToUTC(MST_offset)
 
 
@@ -60,7 +68,7 @@ EndDate = '12/22/2016'
 Station = {}
 Station[0] = 15
 Station[1] = 22 
-Station[2] = 23
+Station[2] = 44
 #Station[3] = 19
 #Station[4] = 24
 #Station[5] = 30 
@@ -76,34 +84,65 @@ Station = ['Station{:03d}'.format(Station[i]) for i in Station.keys()]
 PDR.PlotDataRange(ALLdata,StartDate,EndDate,Station,ReadingType)
     
     
-    
-    
-    
-    
-    
-    
-    
+var = 'solar:'
+data = pd.DataFrame(ALLdata.WSdata[15].data_binned[['datetime_bins',var]])
+data.set_index('datetime_bins',inplace=True)
 
-if LoadType == 'raw':
-    ALLdata.CheckReadingRanges()
-    #Remove all records where all sensor values are zero
-    ALLdata.RemoveAllZeros()
-    #Check the time spacing between each reading in the data set
-    ALLdata.CheckTimeSpace()
+
+start = [2015,3,1]
+end = [2019,4,2]
+var = 'temp:'
+stations = ALLdata.WSdata
+station_QQ_plots(stations,start,end,var)
+
+
+for station in ALLdata.WSdata:
+    station.data_binned.set_index('datetime_bins',inplace=True)
     
-    #Determine the minimum stepsize for which at least CutoffPercent of the 
-    #readings have an equal or smaller stepsize
-    CutoffPercent = 99
-    mask = ALLdata.TimeStepSum['% < or ==']>CutoffPercent
-    MinStepSize = np.array(ALLdata.TimeStepSum['StepSize(min)'][mask])[0]
-    
-    
-    timestep = 5 #minutes
-    options = 'avg'
-    firstYear = 2016 #the first year in the dataset
-    ALLdata.BinDataSets(timestep,options,firstYear)
-    print(ALLdata.BinTimestepSum)
-    ALLdata.SaveBinnedData()
+times = []
+#times.append('2017-04-01 00:00:00')
+#times.append('2017-04-01 08:00:00')
+#times.append('2017-04-01 12:00:00')
+#times.append('2017-04-01 20:00:00')
+
+times.append('2017-01-01 00:00:00')
+times.append('2017-01-01 08:00:00')
+times.append('2017-01-01 12:00:00')
+times.append('2017-01-01 20:00:00')
+
+timestamps = [pd.to_datetime(time) for time in times]
+spatial_QQ_plots(ALLdata,timestamps)
+
+
+num_binned_readings = [station.data_binned.shape[0] for station in ALLdata.WSdata]
+plt.hist(num_binned_readings,bins=8)
+plt.xlabel('# data points per station')
+plt.ylabel('# stations')
+           
+
+
+#     
+#
+#if LoadType == 'raw':
+#    ALLdata.CheckReadingRanges()
+#    #Remove all records where all sensor values are zero
+#    ALLdata.RemoveAllZeros()
+#    #Check the time spacing between each reading in the data set
+#    ALLdata.CheckTimeSpace()
+#    
+#    #Determine the minimum stepsize for which at least CutoffPercent of the 
+#    #readings have an equal or smaller stepsize
+#    CutoffPercent = 99
+#    mask = ALLdata.TimeStepSum['% < or ==']>CutoffPercent
+#    MinStepSize = np.array(ALLdata.TimeStepSum['StepSize(min)'][mask])[0]
+#    
+#    
+#    timestep = 5 #minutes
+#    options = 'avg'
+#    firstYear = 2016 #the first year in the dataset
+#    ALLdata.BinDataSets(timestep,options,firstYear)
+#    print(ALLdata.BinTimestepSum)
+#    ALLdata.SaveBinnedData()
     
 #    dirNormType = 'minmax'
 #    ALLdata.NormalizeVals('temp',dirNormType)
