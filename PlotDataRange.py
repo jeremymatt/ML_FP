@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import pandas as pd
 import numpy as np
+import matplotlib.dates as mdates
         
 #Plots generates a plot of data between the start and end dates for the station or stations
 #and the reading or readings requested
@@ -30,6 +31,9 @@ def PlotDataRange(ALLdata,StartDate,EndDate,Station,ReadingType,font_size = 16):
     #Initialize the figure
     fig, ax1 = plt.subplots(figsize=(13, 11), dpi= 80, facecolor='w', edgecolor='k')
     ax2 = ax1.twinx()
+    hrs = mdates.HourLocator()
+    minute = mdates.MinuteLocator(interval=15)
+    hrs_fmt = mdates.DateFormatter('%H')
     
     #Convert the start and end dates to timestamp values
     StartDate = pd.to_datetime(StartDate)
@@ -77,12 +81,22 @@ def PlotDataRange(ALLdata,StartDate,EndDate,Station,ReadingType,font_size = 16):
     for i in range(0,len(ReadingType)):
         if not ReadingType[i] == 'dir':
             breakhere = 1
-            titletext = titletext+chr(10)+ReadingType[i]+' Range: '+str(ALLdata.MinMaxRanges['Min'].loc[ReadingType[i]])+'-'+str(ALLdata.MinMaxRanges['Max'].loc[ReadingType[i]])
-    breakhere = 1
+            titletext = titletext+chr(10)+ReadingType[i]
+
+
     fig.suptitle(titletext,fontsize=font_size)
     ax1.set_xlabel('date')
     ax1.set_ylabel('Normalized reading')
     ax2.set_ylabel('Direction')
+    ax1.grid(which='major', axis='both')
+    ax1.grid(which='minor', axis='both')
+    ax1.xaxis.set_major_locator(hrs)
+    ax1.xaxis.set_minor_locator(minute)
+    ax1.xaxis.set_major_formatter(hrs_fmt)
+    plt.setp(ax1.get_xticklabels(), rotation=90, horizontalalignment='center')
+    
+    
+    
     
     #Resize the fonts for all items in axis 1
     for item in ([ax1.title, ax1.xaxis.label, ax1.yaxis.label] +

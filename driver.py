@@ -61,8 +61,8 @@ except:
     file.close()
     
     
-StartDate = '12/19/2016'
-EndDate = '12/22/2016'
+StartDate = '1/2/2017'
+EndDate = '1/3/2017'
 #StartDate = '3/30/2017'
 #EndDate = '4/2/2017'
 Station = {}
@@ -83,44 +83,45 @@ ReadingType[0] = 'dir'
 Station = ['Station{:03d}'.format(Station[i]) for i in Station.keys()]
 PDR.PlotDataRange(ALLdata,StartDate,EndDate,Station,ReadingType)
     
+run_descriptive_statistics = False
+if run_descriptive_statistics:   
+    var = 'solar:'
+    data = pd.DataFrame(ALLdata.WSdata[15].data_binned[['datetime_bins',var]])
+    data.set_index('datetime_bins',inplace=True)
     
-var = 'solar:'
-data = pd.DataFrame(ALLdata.WSdata[15].data_binned[['datetime_bins',var]])
-data.set_index('datetime_bins',inplace=True)
-
-
-start = [2015,3,1]
-end = [2019,4,2]
-var = 'temp:'
-stations = ALLdata.WSdata
-station_QQ_plots(stations,start,end,var)
-
-
-for station in ALLdata.WSdata:
-    station.data_binned.set_index('datetime_bins',inplace=True)
     
-print('test')
+    start = [2015,3,1]
+    end = [2019,4,2]
+    var = 'temp:'
+    stations = ALLdata.WSdata
+    station_QQ_plots(stations,start,end,var)
     
-times = []
-#times.append('2017-04-01 00:00:00')
-#times.append('2017-04-01 08:00:00')
-#times.append('2017-04-01 12:00:00')
-#times.append('2017-04-01 20:00:00')
-
-times.append('2017-01-01 00:00:00')
-times.append('2017-01-01 09:00:00')
-times.append('2017-01-01 12:00:00')
-times.append('2017-01-01 20:00:00')
-
-timestamps = [pd.to_datetime(time) for time in times]
-spatial_QQ_plots(ALLdata,timestamps)
-
-
-num_binned_readings = [station.data_binned.shape[0] for station in ALLdata.WSdata]
-plt.hist(num_binned_readings,bins=8)
-plt.xlabel('# data points per station')
-plt.ylabel('# stations')
-           
+    
+    for station in ALLdata.WSdata:
+        station.data_binned.set_index('datetime_bins',inplace=True)
+        
+    print('test')
+        
+    times = []
+    #times.append('2017-04-01 00:00:00')
+    #times.append('2017-04-01 08:00:00')
+    #times.append('2017-04-01 12:00:00')
+    #times.append('2017-04-01 20:00:00')
+    
+    times.append('2017-01-01 00:00:00')
+    times.append('2017-01-01 09:00:00')
+    times.append('2017-01-01 12:00:00')
+    times.append('2017-01-01 20:00:00')
+    
+    timestamps = [pd.to_datetime(time) for time in times]
+    spatial_QQ_plots(ALLdata,timestamps)
+    
+    
+    num_binned_readings = [station.data_binned.shape[0] for station in ALLdata.WSdata]
+    plt.hist(num_binned_readings,bins=8)
+    plt.xlabel('# data points per station')
+    plt.ylabel('# stations')
+               
 
 
 #     
