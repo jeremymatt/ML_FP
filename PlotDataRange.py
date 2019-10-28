@@ -29,7 +29,7 @@ def PlotDataRange(ALLdata,StartDate,EndDate,Station,ReadingType,font_size = 16):
 #            return
     
     #Initialize the figure
-    fig, ax1 = plt.subplots(figsize=(13, 11), dpi= 80, facecolor='w', edgecolor='k')
+    fig, ax1 = plt.subplots(figsize=(25, 11), dpi= 80, facecolor='w', edgecolor='k')
     ax2 = ax1.twinx()
     hrs = mdates.HourLocator()
     minute = mdates.MinuteLocator(interval=15)
@@ -88,7 +88,7 @@ def PlotDataRange(ALLdata,StartDate,EndDate,Station,ReadingType,font_size = 16):
     ax1.set_xlabel('date')
     ax1.set_ylabel('Normalized reading')
     ax2.set_ylabel('Direction')
-    ax1.grid(which='major', axis='both')
+    ax1.grid(which='major', axis='both',color='black')
     ax1.grid(which='minor', axis='both')
     ax1.xaxis.set_major_locator(hrs)
     ax1.xaxis.set_minor_locator(minute)

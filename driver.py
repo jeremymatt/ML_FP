@@ -60,15 +60,16 @@ except:
     dist.to_csv(file,mode='a',header=True,index=True,index_label='ID')
     file.close()
     
-    
-StartDate = '1/2/2017'
-EndDate = '1/3/2017'
+day = 28
+StartDate = '2/{}/2017'.format(day)
+EndDate = '2/{}/2017'.format(day+1)
+EndDate = '3/1/2017'
 #StartDate = '3/30/2017'
 #EndDate = '4/2/2017'
 Station = {}
-Station[0] = 0
-Station[1] = 1 
-Station[2] = 2
+Station[0] = 6
+#Station[1] = 7 
+#Station[2] = 8
 #Station[3] = 19
 #Station[4] = 24
 #Station[5] = 30 
@@ -79,7 +80,8 @@ Station[2] = 2
 #Station = [32]
 ReadingType = {}
 ReadingType[0] = 'dir'
-#ReadingType[1] = 'speed'
+ReadingType[1] = 'speed'
+#ReadingType[2] = 'temp'
 Station = ['Station{:03d}'.format(Station[i]) for i in Station.keys()]
 PDR.PlotDataRange(ALLdata,StartDate,EndDate,Station,ReadingType)
     
