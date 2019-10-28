@@ -52,22 +52,22 @@ ALLdata.WSdata[0].name
 ALLdata.WSdata[0].data_binned.head(5)
 
 #generate the distances adjancecy matrix
-try: dist = pd.read_csv('distances_INL-only.csv').set_index('ID')
-except: 
-    FileName = 'stationcoords.csv'
-    dist = gam.GEN_ADJ_MAT(ALLdata,FileName)
-    file = open('distances.csv','w')
-    dist.to_csv(file,mode='a',header=True,index=True,index_label='ID')
-    file.close()
+#try: dist = pd.read_csv('distances_INL-only.csv').set_index('ID')
+#except: 
+#    FileName = 'stationcoords.csv'
+#    dist = gam.GEN_ADJ_MAT(ALLdata,FileName)
+#    file = open('distances.csv','w')
+#    dist.to_csv(file,mode='a',header=True,index=True,index_label='ID')
+#    file.close()
     
-day = 28
-StartDate = '2/{}/2017'.format(day)
-EndDate = '2/{}/2017'.format(day+1)
-EndDate = '3/1/2017'
+day = 10
+StartDate = '1/{}/2017'.format(day)
+EndDate = '1/{}/2017'.format(day+1)
+#EndDate = '3/1/2017'
 #StartDate = '3/30/2017'
 #EndDate = '4/2/2017'
 Station = {}
-Station[0] = 6
+Station[0] = 1
 #Station[1] = 7 
 #Station[2] = 8
 #Station[3] = 19
