@@ -497,6 +497,60 @@ class WEATHER_LOADDATA:
             
         self.all_names = pd.DataFrame({'names':names})
         
+        
+                
+    def label_data(self,label_file,structure = 'data_binned'):
+        """
+        
+        """
+        
+        data_labels = pd.read_csv(label_file)
+        data_labels['start'] = pd.to_datetime(data_labels['start'])
+        data_labels['end'] = pd.to_datetime(data_labels['end'])
+        
+#        for station in WSdata:
+#            df = getattr(station,structure)
+#            if not df.index.is_all_dates:
+#                df.set_index(['datetime_bins'],inplace=True)
+                
+        
+        for ind,row in data_labels.iterrows():
+            station = 'Station'+str(row['station']).zfill(3)
+            station_index = self.StationNamesIDX[station]
+            df = getattr(self.WSdata[station_index],structure)
+            
+            mask1 = df['datetime_bins']>=row['start']
+            mask2 = df['datetime_bins']<=row['end']
+            header = '{}|label'.format(row['parameter'])
+            if not header in df.keys():
+                df[header]=0
+            
+            df.loc[mask1&mask2,header]=1
+            
+            
+    def calc_wind_u_v(self,scale_by_speed=False):
+        """
+        calculated the u and v components of the wind direction
+        """
+        
+        if not scale_by_speed:
+            rho=1
+            
+        for station in self.WSdata:
+            print('Processing Station: {}'.format(station.name))
+            if scale_by_speed:
+                rho = np.array(station.data_binned['speed:'])
+                
+            phi = np.array(station.data_binned['dir:'])*2*np.pi/360
+            v = rho * np.cos(phi)
+            u = rho * np.sin(phi)
+            
+            station.data_binned['u'] = u
+            station.data_binned['v'] = v
+            
+            
+        
+        
 #    #Locates duplicates timestamps with different sensor values
 #    #not really used because the dup. values are most likely a second reading
 #    #that occured within 1 minute.        
