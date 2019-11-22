@@ -37,7 +37,8 @@ ALLdata.LoadData(LoadType,destdir)
 ALLdata.ConvertTimeStrToDatetime()
 #ALLdata.Check_DST()
 
-
+label_file = 'data_labels.csv'
+ALLdata.label_data(label_file)
 
 
 
@@ -52,13 +53,13 @@ ALLdata.WSdata[0].name
 ALLdata.WSdata[0].data_binned.head(5)
 
 #generate the distances adjancecy matrix
-#try: dist = pd.read_csv('distances_INL-only.csv').set_index('ID')
-#except: 
-#    FileName = 'stationcoords.csv'
-#    dist = gam.GEN_ADJ_MAT(ALLdata,FileName)
-#    file = open('distances.csv','w')
-#    dist.to_csv(file,mode='a',header=True,index=True,index_label='ID')
-#    file.close()
+try: dist = pd.read_csv('distances_INL-only.csv').set_index('ID')
+except: 
+    FileName = 'stationcoords.csv'
+    dist = gam.GEN_ADJ_MAT(ALLdata,FileName)
+    file = open('distances.csv','w')
+    dist.to_csv(file,mode='a',header=True,index=True,index_label='ID')
+    file.close()
     
 day = 10
 StartDate = '1/{}/2017'.format(day)
