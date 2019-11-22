@@ -108,6 +108,10 @@ class WEATHER_DATASET:
                 self.data[i][mask] = np.nan
                 self.NumOutsideRange.loc[i]['low']=len(mask[mask])
             
+            
+            
+        
+            
        
 #####################
 #Code to open the original .tws files

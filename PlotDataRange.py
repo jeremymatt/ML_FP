@@ -29,7 +29,7 @@ def PlotDataRange(ALLdata,StartDate,EndDate,Station,ReadingType,font_size = 16):
 #            return
     
     #Initialize the figure
-    fig, ax1 = plt.subplots(figsize=(25, 11), dpi= 80, facecolor='w', edgecolor='k')
+    fig, ax1 = plt.subplots(figsize=(22, 11), dpi= 80, facecolor='w', edgecolor='k')
     ax2 = ax1.twinx()
     hrs = mdates.HourLocator()
     minute = mdates.MinuteLocator(interval=15)
