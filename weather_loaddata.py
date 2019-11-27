@@ -548,8 +548,60 @@ class WEATHER_LOADDATA:
             station.data_binned['u'] = u
             station.data_binned['v'] = v
             
-            
+    def load_xyz(self,filename):
+        """
+        Adds northing/easting data to each station object
+        """
+        print('\nLoading x,y,z data')
+        xyz = pd.read_excel(filename)
+        xyz.set_index('Station',inplace=True)
         
+        for station in self.WSdata:
+            station.northing = xyz.loc[station.name,'northing']
+            station.easting = xyz.loc[station.name,'easting']
+            station.elevation = xyz.loc[station.name,'elevation']
+            
+    def get_krig_data(self,stations,start,end,binned=True):
+        """
+        Extracts all parameter readings from the stations between the start
+        and end time (inclusive of the start and end times).  if start==end, 
+        only the values for a single time stamp are returned
+        
+        INPUTS:
+            stations - a list of station objects (IE ALLdata.WSdata)
+            start - start date/time string in the format "yyyy-mm-dd hh:mm:ss"
+            end - end date/time string in the format "yyyy-mm-dd hh:mm:ss"
+            binned - If true (default) extract binned data.  Otherwise extracts 
+                    the raw data
+                    
+        OUTPUTS:
+            data - pandas dataframe of the data with station name, northing, 
+                    easting, elevation, and parameter readings
+        """
+        
+        data = pd.DataFrame()
+        
+        
+        for station in stations:
+            if binned:
+                station_data = station.data_binned
+            else:
+                station_data = station.data
+            
+            #Generate a mask that matches the timeframe of interest
+            m1 = station_data['datetime_bins']>=start
+            m2 = station_data['datetime_bins']<=end
+            #Add the data from the current station
+            data_temp = pd.DataFrame(station_data[m1&m2])
+            #Add the northing and eastings
+            data_temp['northing'] = station.northing
+            data_temp['easting'] = station.easting
+            data_temp['elevation'] = station.elevation
+            data_temp['station'] = station.name
+            data = data.append(data_temp,sort=False)
+        
+        data.reset_index(drop=True,inplace=True)
+        return data
         
 #    #Locates duplicates timestamps with different sensor values
 #    #not really used because the dup. values are most likely a second reading
