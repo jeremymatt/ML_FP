@@ -8,20 +8,10 @@ import numpy as np
 import pandas as pd
 import os
 import time
-import sklearn.cluster as cl
 import matplotlib.pyplot as plt
 from weather_loaddata import WEATHER_LOADDATA as LD
-import pickle
-import copy as cp
 import gen_adj_mat as gam
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import PlotDataRange as PDR
-import scipy.stats as sps
-from statsmodels.graphics.gofplots import qqplot
-from select_daterange import select_daterange
-from station_QQ_plots import station_QQ_plots
-from spatial_QQ_plots import spatial_QQ_plots
 
 #Import user-defined functions
 from geostats_functions import *
@@ -30,14 +20,26 @@ from geostats_functions import *
 
 #Initialize:
 ALLdata = LD()
+
 #Load the raw data
 destdir = './RawData/all/'
 LoadType = 'raw'
 #Load the binned data
 destdir = './DataBinned/HRRR_INL-5minraw_noS35_no-HRRR/'
 LoadType = 'binned'
+
+
 ALLdata.LoadData(LoadType,destdir)
 ALLdata.ConvertTimeStrToDatetime()
+
+ALLdata.calc_wind_u_v(scale_by_speed=True)
+
+filename = 'northing_easting.xlsx'
+ALLdata.load_xyz(filename)
+
+start = '2017-01-01 12:15:00'
+end = '2017-01-01 12:15:00'
+data = ALLdata.get_krig_data(ALLdata.WSdata,start,end)
 
 
 #set plotting defaults
@@ -51,7 +53,7 @@ dist.set_index('ks',inplace=True)
 datetime = '2017-04-01 12:00:00'
 
 data = ALLdata.WSdata[0].data_binned[ALLdata.WSdata[0].data_binned['datetime_bins']==datetime]
-ALLdata.calc_wind_u_v(scale_by_speed=False)
+#ALLdata.calc_wind_u_v(scale_by_speed=False)
 
 ##make a list of the variable names to pass to functions
 #variables = ['solar:','dir:']
@@ -63,7 +65,7 @@ ALLdata.calc_wind_u_v(scale_by_speed=False)
 #try: pairs
 #except: pairs = extract_pairs(data,x,y,variables,unordered)
 
-var = 'u'
+var = 'temp'
 head = []
 tail = []
 distances = []

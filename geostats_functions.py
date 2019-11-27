@@ -379,7 +379,9 @@ def plot_semivariogram(differences,labels,sv_mode):
     fig_vars = (fig, ax1)
         
     #Plot the raw data points
-    ax1.plot(differences['distance'],differences['delta'],marker='.',color='silver',linestyle='')
+    plot_raw = False
+    if plot_raw:
+        ax1.plot(differences['distance'],differences['delta'],marker='.',color='silver',linestyle='')
     #Plot the binned averages
     ax1.plot(x,y,'k*')
     
