@@ -34,7 +34,7 @@ class WEATHER_LOADDATA:
         #Init the counter and pre-allocate space for starting dates and offsets
         ctr = 0
         self.NumEntries = np.zeros([self.numFiles,1]).astype('int')
-        self.StationNamesIDX = {'name': 'idx'}
+        self.StationNamesIDX = {}
         self.StationNames = {}
         
         
@@ -508,6 +508,18 @@ class WEATHER_LOADDATA:
         data_labels['start'] = pd.to_datetime(data_labels['start'])
         data_labels['end'] = pd.to_datetime(data_labels['end'])
         
+        labeled_stations = set(data_labels['station'].values)
+        labeled_params = set(data_labels['parameter'].values)
+        
+        for st_num in labeled_stations:
+            station = 'Station'+str(st_num).zfill(3)
+            station_index = self.StationNamesIDX[station]
+            df = getattr(self.WSdata[station_index],structure)
+            for param in labeled_params:
+                header = 'label|{}'.format(param)
+                df[header] = 0
+            
+            
 #        for station in WSdata:
 #            df = getattr(station,structure)
 #            if not df.index.is_all_dates:
@@ -521,7 +533,7 @@ class WEATHER_LOADDATA:
             
             mask1 = df['datetime_bins']>=row['start']
             mask2 = df['datetime_bins']<=row['end']
-            header = '{}|label'.format(row['parameter'])
+            header = 'label|{}'.format(row['parameter'])
             if not header in df.keys():
                 df[header]=0
             
@@ -602,6 +614,247 @@ class WEATHER_LOADDATA:
         
         data.reset_index(drop=True,inplace=True)
         return data
+    
+    def trim_dist_matrix(self,dist):
+        """
+        Keeps only distances in the dist matrix 
+        """
+        
+        data_stations = list(self.StationNamesIDX.keys())
+        dist_stations = list(dist.keys())
+        not_in_dist = [station for station in data_stations if not station in dist_stations]
+        not_in_data = [station for station in dist_stations if not station in data_stations]
+        
+        if len(not_in_dist)>0:
+            print('WARNING: the following stations are not in the distances matrix')
+            print(not_in_dist)
+            
+        if len(not_in_data)>0:
+            for station in not_in_data:
+                print('removing station from distance matrix: {} '.format(station))
+                dist.drop(labels=station, axis=0, inplace=True)
+                dist.drop(labels=station, axis=1, inplace=True)
+                
+        return dist
+    
+    
+    def gen_multistep_samples(self,stations,start,end,num_samples,duration,variables):
+        """
+        generates samples consisting of all entries in the "variables" list for 
+        all input feature vectors that fall within (duration) minutes of a 
+        randomly selected start time (t0).  Columns in the output pandas data 
+        structure will consist of:
+            1. time - the time associated with the start of the time block (t0)
+            2. station - the station the sample was generated from
+               the variable data, IE var1@t0, var2@t0, var1@t1, var2@t2, etc
+            3. num_bad_readings - the count of the data flags for the block
+                0 = no bad data
+                1 = 1 bad reading, etc
+                
+        INPUTS
+            stations - a list of station objects to process
+            start - start time to collect samples from (t0>=start)
+                    in the format 'yyyy-mm-dd hh:mm:ss'
+            end - end time to collect samples from (t0+duration<=end) 
+                    in the format 'yyyy-mm-dd hh:mm:ss'
+            num_samples - the number of samples to generate
+            duration - the time spread to collect samples over - the last time
+                    step is <=t0+duration.  Must be in the format hh:mm:ss
+                    or timedelta object
+            variables - the variables to include in the sample
+            
+            
+        OUTPUTS
+            samples - pandas dataframe of the generated samples
+            variable_headers - the headers of the data block
+        """
+        
+        #Convert the start and end times to pandas datetime objects
+        start = pd.to_datetime(start)
+        end = pd.to_datetime(end)
+        
+        #Convert the duration to a timedelta object)
+        duration = pd.to_timedelta(duration)
+        
+        #move the start ahead so the the last part of the datablock cannot
+        #be before the start date/time
+        start = start+duration
+        
+        #Init an empty dataframe to hold the samples
+        samples = pd.DataFrame()
+        
+        #loop through sample generation
+        for i in range(num_samples):
+            #tell user where the process is
+            if np.mod(i,100)==0:
+                print('Generating sample: {} of {}'.format(i,num_samples))
+            
+            #Randomly select a station
+            station = np.random.choice(stations)
+            #Mask of the input feature vectors in the valid time range
+            m1 = station.data_binned['datetime_bins']>=start
+            m2 = station.data_binned['datetime_bins']<=end
+            #Extract a list of possible times to start the sample
+            times = station.data_binned.loc[m1&m2,'datetime_bins']
+            #Select the time to start the sample randomly
+            sample_time = np.random.choice(times)
+            #Generate the sample
+            sample = self.gen_1_multistep_sample(station,sample_time,duration,variables)
+            #Append to the dataframe
+            samples = samples.append(sample,sort=False)
+            
+        #Extract the headers associated with the X variables 
+        variable_headers = [var for var in samples.keys() if var.split('|')[0] in variables]
+        y_headers = [key for key in variable_headers if int(key.split('|')[1]) == 0]
+        x_headers = ['month','day','hour','minute']
+        x_headers.extend([key for key in variable_headers if int(key.split('|')[1]) > 0])
+        return samples, x_headers,y_headers
+        
+    
+    
+    def gen_series_multistep_samples(self,station,start,end,duration,variables):
+        """
+        generates one sample for each timestep between start and end.
+        samples consist of all entries in the "variables" list for 
+        all input feature vectors that fall within (duration) minutes of a 
+        randomly selected start time (t0).  Columns in the output pandas data 
+        structure will consist of:
+            1. time - the time associated with the start of the time block (t0)
+            2. station - the station the sample was generated from
+               the variable data, IE var1@t0, var2@t0, var1@t1, var2@t2, etc
+            3. num_bad_readings - the count of the data flags for the block
+                0 = no bad data
+                1 = 1 bad reading, etc
+                
+        INPUTS
+            station - a single station object to process
+            start - start time to collect samples from (t0>=start)
+                    in the format 'yyyy-mm-dd hh:mm:ss'
+            end - end time to collect samples from (t0+duration<=end) 
+                    in the format 'yyyy-mm-dd hh:mm:ss'
+            duration - the time spread to collect samples over - the last time
+                    step is <=t0+duration.  Must be in the format hh:mm:ss
+                    or timedelta object
+            variables - the variables to include in the sample
+            
+            
+        OUTPUTS
+            samples - pandas dataframe of the generated samples
+            variable_headers - the headers of the data block
+        """
+        
+        #Convert the start and end times to pandas datetime objects
+        start = pd.to_datetime(start)
+        end = pd.to_datetime(end)
+        
+        #Convert the duration to a timedelta object)
+        duration = pd.to_timedelta(duration)
+        
+        
+        #Mask of the input feature vectors in the valid time range
+        m1 = station.data_binned['datetime_bins']>=start+duration
+        m2 = station.data_binned['datetime_bins']<=end
+        #Extract a list of possible times to start the sample
+        times = station.data_binned.loc[m1&m2,'datetime_bins']
+        
+        #Init an empty dataframe to hold the samples
+        samples = pd.DataFrame()
+        
+        #loop through sample generation
+        for i,sample_time in enumerate(times):
+            #tell user where the process is
+            if np.mod(i,100)==0:
+                print('Generating sample: {} of {}'.format(i,times.shape[0]))
+            
+            #Generate the sample
+            sample = self.gen_1_multistep_sample(station,sample_time,duration,variables)
+            #Append to the dataframe
+            samples = samples.append(sample,sort=False)
+            
+        #Extract the headers associated with the X variables 
+        variable_headers = [var for var in samples.keys() if var.split('|')[0] in variables]
+        y_headers = [key for key in variable_headers if int(key.split('|')[1]) == 0]
+        x_headers = ['month','day','hour','minute']
+        x_headers.extend([key for key in variable_headers if int(key.split('|')[1]) > 0])
+        return samples, x_headers,y_headers
+        
+        
+        
+    def gen_1_multistep_sample(self,station,sample_time,duration,variables):
+        """
+        generates samples consisting of all entries in the "variables" list for 
+        all input feature vectors that fall within (duration) minutes of a 
+        randomly selected start time (t0).  Columns in the output pandas data 
+        structure will consist of:
+            1. time - the time associated with the start of the time block (t0)
+            2. station - the station the sample was generated from
+               the variable data, IE var1@t0, var2@t0, var1@t1, var2@t2, etc
+            3. num_bad_readings - the count of the data flags for the block
+                0 = no bad data
+                1 = 1 bad reading, etc
+                
+        INPUTS
+            station - The station object to generate the sample from
+            sample_time - The first sample time (t0) in the format 
+                    'yyyy-mm-dd hh:mm:ss'
+            duration - the time spread to collect samples over - the last time
+                    step is <=t0+duration.  Must be in the format hh:mm:ss
+                    or timedelta object
+            variables - the variables to include in the sample
+            
+            
+        OUTPUTS
+            sample - A pandas dataframe containing 1 sample
+        """
+        
+        #Convert the starting sample time to a datetime object
+        sample_time = pd.to_datetime(sample_time)
+        #Convert the duration to a timedelta object
+        duration = pd.to_timedelta(duration)
+        
+        #Mask off the data in the time range
+        m1 = station.data_binned['datetime_bins']>=sample_time-duration
+        m2 = station.data_binned['datetime_bins']<=sample_time
+        
+        #Extract the data from the data table
+        data = station.data_binned[m1&m2].copy()
+        #Sort the data so the current data point is the first point
+        data.sort_index(ascending=False,inplace=True)
+        
+        #Find the number of input feature vectors that fall inside the window
+        num_rows = data.shape[0]
+        
+        #Init an empty dataframe
+        sample = pd.DataFrame()
+        #Add the time, station, day, hour, and minute to the dataframe
+        sample['time'] = [data['datetime_bins'].iloc[0]]
+        sample['time_min'] = [data]
+        sample['station'] = [station.name]
+        sample['month'] = [sample_time.month]
+        sample['day'] = [sample_time.day]
+        sample['hour'] = [sample_time.hour]
+        sample['minute'] = [sample_time.minute]
+        #Extract the variable values into a 1D vector
+        vals = data[variables].values.ravel()
+        #Generate headers to match the variables
+        headers = ['{}|{}'.format(var,row) for row in range(num_rows) for var in variables]
+        #Add the headers and values to the dataframe
+        sample[headers] = pd.DataFrame([vals],index=sample.index)
+        
+        #Find the keys that are labels
+        label_keys = [key for key in data.keys() if key.split('|')[0] == 'label']
+        
+        #Find the labels for the current time step
+        t0_labels = data[label_keys].iloc[0].values
+        #Add the current timestep labels into the dataframe
+        sample[label_keys] = pd.DataFrame([t0_labels],index=sample.index)
+        #Add the sum of all labels (t0 through tn) to the dataframe
+        sample['sum_all_labels'] = data[label_keys].sum().sum()
+        #Add the sum of all labels after t0 to the dataframe
+        sample['sum_t1-n_labels'] = data[label_keys].iloc[1:].sum().sum()
+        
+        return sample
+            
         
 #    #Locates duplicates timestamps with different sensor values
 #    #not really used because the dup. values are most likely a second reading
