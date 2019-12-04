@@ -57,9 +57,9 @@ import copy as cp
 import time
 
 #requires the ALLdata object with temp, speed, and solar data normalized to {0:1}
-def MakeDiffPlots(ALLdata,dist,font_size = 18):
+def MakeDiffPlots(ALLdata,dist,font_size = 12):
     #initialize the figure
-    fig, ax1 = plt.subplots(figsize=(18, 16), dpi= 80, facecolor='w', edgecolor='k')
+    fig, ax1 = plt.subplots(figsize=(10, 9), dpi= 80, facecolor='w', edgecolor='k')
     ax2 = ax1.twinx()
     
     #Make a dataframe containing the list of all timestamps in the global dataset, then find the min/max date
@@ -73,14 +73,16 @@ def MakeDiffPlots(ALLdata,dist,font_size = 18):
     
     #Variable names
     names = {}
-    names[0] = 'temp'
-    names[1] = 'solar'
-    names[2] = 'speed'
-    names[3] = 'dir'
+    names[0] = 'temp:'
+    names[1] = 'solar:'
+    names[2] = 'speed:'
+    names[3] = 'dir:'
+    names[4] = 'u'
+    names[5] = 'v'
     
     
     #indices into names to print
-    VariablesToCheck = np.array([0,1,2,3])
+    VariablesToCheck = np.array(list(names.keys()))
     
     #k nearest neighbors to print
     maxNeigh = 3
@@ -99,7 +101,8 @@ def MakeDiffPlots(ALLdata,dist,font_size = 18):
     print('Printing difference/Variance plots')
     for i in range(0,ALLdata.numFiles):
         #Grab the data for Station 1
-        data = ALLdata.WSdata[i].data_binned
+        data = ALLdata.WSdata[i].data_binned.copy()
+        data.set_index('datetime_bins',drop=True,inplace=True)
         #Get the name of the current station
         name = ALLdata.WSdata[i].name
     
@@ -111,11 +114,12 @@ def MakeDiffPlots(ALLdata,dist,font_size = 18):
             
             
             #Extract an array of the distances from the current station to all other stations
-            temp = np.array(dist[name])
+            temp = dist[name]
             #Sort the distances
-            temp.sort()
+            temp = temp.sort_values()
             #Grab the distance of the Xth nearest neighbor
-            minDist = temp[x]
+            minDist = temp.iloc[x]
+            NNname = list(temp.index)[x]
             
             #If the distance is valid, continue with plotting
             #NOTE: The distance matrix contains np.nan values for:
@@ -123,10 +127,22 @@ def MakeDiffPlots(ALLdata,dist,font_size = 18):
             #   2. If the coordinates of one or both of the stations are unknown
             if ~np.isnan(minDist):
                 #Find the index number of the Xth nearest neighbor
-                NNidx = dist[name][dist[name]==minDist].index[0]
-                #Grab the data and the name of the Xth nearest neighbor
-                NNdata = ALLdata.WSdata[NNidx].data_binned
-                NNname = ALLdata.WSdata[NNidx].name
+                NNidx = ALLdata.StationNamesIDX[NNname]
+                #Grab the data of the Xth nearest neighbor
+                NNdata = ALLdata.WSdata[NNidx].data_binned.copy()
+                #set the index to the datetime column
+                NNdata.set_index('datetime_bins',drop=True,inplace=True)
+                
+                #Calculate the deltas
+                delta = pd.DataFrame(data-NNdata)
+                #Drop NaN rows (where one or the oher dataframe was missing data)
+                delta.dropna(axis=0,inplace=True)
+                #Reset the index
+                delta.reset_index(inplace=True)
+                
+                delta['dir:'] = (delta['dir:']+180) % 360 - 180
+                
+                """
                 #Merge the Station1 data with the data from the Xth nearest neighbor
                 data_merged = pd.merge(data,NNdata,how='inner',left_on='datetime_bins',right_on='datetime_bins')
                 
@@ -140,6 +156,8 @@ def MakeDiffPlots(ALLdata,dist,font_size = 18):
                 dir_delta = (dir_delta+180) % 360 - 180
                 #Compile the differences into a dataframe
                 delta = pd.DataFrame({'datetime':data_merged['datetime_bins'],'temp:':temp_delta,'speed:':speed_delta,'solar:':solar_delta,'dir:':dir_delta})
+                """
+                
                 
                 #For each reading type, generate a plot
                 for ind, ii in enumerate(VariablesToCheck):
@@ -147,9 +165,9 @@ def MakeDiffPlots(ALLdata,dist,font_size = 18):
                     #Make the title name string
                     title = names[ii] + ' at '+ '(Station ID-'+str(i)+')' + 'NeighborNum(' + str(x) +')'
                     #Plot the difference data as points
-                    lns1 = ax1.plot(delta['datetime'],delta[names[ii]+':'],marker='.',ls='None',markerfacecolor='xkcd:blurple',label='Station'+str(i) + ' vs. Station'+str(NNidx))
+                    lns1 = ax1.plot(delta['datetime_bins'],delta[names[ii]],marker='.',ls='None',markerfacecolor='xkcd:blurple',label='Station'+str(i) + ' vs. Station'+str(NNidx))
                     #Get x-values for plotting the zero line
-                    axvals = [delta['datetime'].iloc[0],delta['datetime'].iloc[-1]]
+                    axvals = [delta['datetime_bins'].iloc[0],delta['datetime_bins'].iloc[-1]]
                     #Plot the zero marker line
                     lns2 = ax1.plot(axvals,[0,0],color='xkcd:almost black',label = 'zero line')
                     #Add figure title
@@ -167,7 +185,7 @@ def MakeDiffPlots(ALLdata,dist,font_size = 18):
                     #Prep for generating the variance moving window
                     ########
                     #Find the number of elements in the data range
-                    RawVals = np.array(delta[names[ii]+':'])
+                    RawVals = np.array(delta[names[ii]])
                     NumElem = RawVals.shape[0]
                     #Calculate the number of windows
                     NumWindows = NumElem-WindowSize+1
@@ -175,7 +193,7 @@ def MakeDiffPlots(ALLdata,dist,font_size = 18):
                     #Preallocate for the averaged X and Y values
                     varYvals = np.ones(NumWindows)*-999  #variance
                     avgYvals = np.ones(NumWindows)*-999  #mean
-                    avgXvals = delta['datetime'].iloc[0:NumWindows]
+                    avgXvals = delta['datetime_bins'].iloc[0:NumWindows]
                     
                     #Slide moving window & grab time stamp from approx. middle of window range
                     for c in range(0,NumWindows):
@@ -185,7 +203,7 @@ def MakeDiffPlots(ALLdata,dist,font_size = 18):
                         varYvals[c] = np.var(RawVals[c:c+WindowSize])
                         #Find the index of the approx. central timestamp
                         xvind = c+HalfWindow
-                        avgXvals[c] = delta['datetime'].iloc[xvind]
+                        avgXvals[c] = delta['datetime_bins'].iloc[xvind]
                     
                     #Plot the variance
                     lns3 = ax2.plot(avgXvals,varYvals,color='xkcd:fire engine red',label = 'Variance over moving window')

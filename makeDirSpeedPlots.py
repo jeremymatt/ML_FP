@@ -55,9 +55,9 @@ import copy as cp
 import time
 
 #requires the ALLdata object with temp, speed, and solar data normalized to {0:1}
-def MakeDirSpeedPlots(ALLdata,dist,font_size = 18):
+def MakeDirSpeedPlots(ALLdata,dist,font_size = 12):
     #initialize the figure
-    fig, ax1 = plt.subplots(figsize=(18, 16), dpi= 80, facecolor='w', edgecolor='k')
+    fig, ax1 = plt.subplots(figsize=(10, 9), dpi= 80, facecolor='w', edgecolor='k')
     ax2 = ax1.twinx()
     
     #Make a dataframe containing the list of all timestamps in the global dataset, then find the min/max date
@@ -96,11 +96,12 @@ def MakeDirSpeedPlots(ALLdata,dist,font_size = 18):
             
             
             #Extract an array of the distances from the current station to all other stations
-            temp = np.array(dist[name])
+            temp = dist[name]
             #Sort the distances
-            temp.sort()
+            temp = temp.sort_values()
             #Grab the distance of the Xth nearest neighbor
-            minDist = temp[x]
+            minDist = temp.iloc[x]
+            NNname = list(temp.index)[x]
             
             #If the distance is valid, continue with plotting
             #NOTE: The distance matrix contains np.nan values for:
@@ -108,10 +109,9 @@ def MakeDirSpeedPlots(ALLdata,dist,font_size = 18):
             #   2. If the coordinates of one or both of the stations are unknown
             if ~np.isnan(minDist):
                 #Find the index number of the Xth nearest neighbor
-                NNidx = dist[name][dist[name]==minDist].index[0]
-                #Grab the data and the name of the Xth nearest neighbor
+                NNidx = ALLdata.StationNamesIDX[NNname]
+                #Grab the data of the Xth nearest neighbor
                 NNdata = ALLdata.WSdata[NNidx].data_binned
-                NNname = ALLdata.WSdata[NNidx].name
                 #Merge the Station1 data with the data from the Xth nearest neighbor
                 data_merged = pd.merge(data,NNdata,how='inner',left_on='datetime_bins',right_on='datetime_bins')
                 
@@ -149,7 +149,7 @@ def MakeDirSpeedPlots(ALLdata,dist,font_size = 18):
                           'Nearest Neighbor: ' + str(x) + '\n' +
                           ' distance: ' + str(minDist.round(2)) + ' km', fontsize=font_size)
                 #Set the x and y limits and label the axes
-                ax1.set_ylim([-50,50])
+                ax1.set_ylim([-10000,10000])
                 ax1.set_xlim(np.array([minDate,maxDate]))
                 ax1.set_ylabel('Difference between station')
                 ax1.set_xlabel('Date')
@@ -187,6 +187,7 @@ def MakeDirSpeedPlots(ALLdata,dist,font_size = 18):
                 
                 #Center the y-axis limits around zero
                 ylim = np.nanmax(varYvals)
+                print('ylim: {}'.format(ylim))
                 ax2.set_ylim([-1*ylim,ylim])
                 #Add the legend
                 fig.legend(prop={'size': font_size})

@@ -6,24 +6,8 @@ Created on Fri Jun  1 17:38:44 2018
 """
 
 
-import numpy as np
-import pandas as pd
-import os
-import time
-import sklearn.cluster as cl
 import matplotlib.pyplot as plt
 from weather_loaddata import WEATHER_LOADDATA as LD
-import pickle
-import copy as cp
-import gen_adj_mat as gam
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import PlotDataRange as PDR
-import scipy.stats as sps
-from statsmodels.graphics.gofplots import qqplot
-from select_daterange import select_daterange
-from station_QQ_plots import station_QQ_plots
-from spatial_QQ_plots import spatial_QQ_plots
 
 
 #Initialize:
@@ -38,19 +22,41 @@ ALLdata.LoadData(LoadType,destdir)
 ALLdata.ConvertTimeStrToDatetime()
 #ALLdata.Check_DST()
 
-ALLdata.calc_wind_u_v(scale_by_speed=True)
+ALLdata.calc_wind_u_v(scale_by_speed=False)
 
 label_file = 'data_labels_all.csv'
 ALLdata.label_data(label_file)
 
 
-num_samples = 100
-duration = '00:15:00'
+num_samples = 1000
+duration = '00:30:00'
 start = '2017-01-01 00:00:00'
 end = '2017-03-01 00:00:00'
-variables = ['solar:','temp:','dir:','speed:']
+variables = ['solar:','temp:','u','v']
 stations = ALLdata.WSdata[:8]
-samples, variable_headers = ALLdata.gen_multistep_samples(stations,start,end,num_samples,duration,variables)
+samples, x_headers,y_headers = ALLdata.gen_multistep_samples(stations,start,end,num_samples,duration,variables)
+
+mask = samples['sum_t1-n_labels']==0
+
+samples.to_excel('samples_1k_30min.xlsx')
+
+
+start = '2017-02-03 00:00:00'
+end = '2017-02-06 00:00:00'
+station = ALLdata.WSdata[4]
+samples_test, x_headers,y_headers = ALLdata.gen_series_multistep_samples(station,start,end,duration,variables)
+
+
+"""
+num_timesteps = int(X.shape[1]/Y.shape[1])
+for i in range(num_timesteps):
+    start = 0+i*4
+    end = 4+i*4
+    print('start:{}, end:{}'.format(start,end))
+    print(X[:1,start:end])
+"""
+
+
 
 """
 
