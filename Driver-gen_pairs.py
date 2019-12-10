@@ -115,7 +115,6 @@ if generate:
      
     half_length = int(paired_data.shape[0]/2)
     paired_data.reset_index(inplace=True,drop=True)
-    filename = 'jan2017_11AM_pairs'
     print('\n\nSaving Files')
     #Max rows in an excel sheet
     #split into two files
