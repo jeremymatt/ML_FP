@@ -15,7 +15,7 @@ import matplotlib.dates as mdates
         
 #Plots generates a plot of data between the start and end dates for the station or stations
 #and the reading or readings requested
-def PlotDataRange(ALLdata,StartDate,EndDate,Station,ReadingType,font_size = 16):
+def PlotDataRange(ALLdata,StartDate,EndDate,Station,ReadingType,label_prefix = None, font_size = 16):
     #Reading: one or more of the following:
     #   temp, solar, speed, dir
     #Station: one or more stations (either text name or ID#)
@@ -55,6 +55,37 @@ def PlotDataRange(ALLdata,StartDate,EndDate,Station,ReadingType,font_size = 16):
     
     #Grab the data for each reading type at each station and add to the plot
     for i in range(0,len(Station)):
+        for reading in ReadingType.values():
+            data = ALLdata.WSdata[StationNum[i]].data_binned
+            m1 = data['datetime_bins']>=StartDate
+            m2 = data['datetime_bins']<EndDate
+            data = data.loc[m1&m2,:]
+            
+            plot_data = pd.DataFrame()
+            plot_data['X'] = data['datetime_bins']
+            plot_data['Y'] = data[reading]
+            if label_prefix!=None:
+                plot_data['label'] = data['{}|{}'.format(label_prefix,reading)]
+            else:
+                plot_data['label'] = 0
+                
+            #Build string for legend label
+            DataLabel = ALLdata.StationNames[StationNum[i]]+'-'+reading
+            
+            mask_good = plot_data['label'] == 0
+            #Plot the data
+            cur_color = next(colors)
+            if reading=='dir':
+                ax2.plot(plot_data.loc[mask_good,'X'],plot_data.loc[mask_good,'Y'],label=DataLabel,marker='.',ls='None',color=cur_color)
+                if sum(~mask_good)>0:
+                    ax2.plot(plot_data.loc[~mask_good,'X'],plot_data.loc[~mask_good,'Y'],label='{}(fault)'.format(DataLabel),marker='*',markersize = 12, ls='None',color=cur_color)
+            else:
+                ax1.plot(plot_data.loc[mask_good,'X'],plot_data.loc[mask_good,'Y'],label=DataLabel,marker='.',ls='None',color=cur_color)
+                if sum(~mask_good)>0:
+                    ax1.plot(plot_data.loc[~mask_good,'X'],plot_data.loc[~mask_good,'Y'],label='{}(fault)'.format(DataLabel),marker='*',markersize = 12, ls='None',color=cur_color)
+        
+        
+        """
         for ii in range(0,len(ReadingType)):
             breakhere=1
             #grab the relevant data
@@ -64,6 +95,9 @@ def PlotDataRange(ALLdata,StartDate,EndDate,Station,ReadingType,font_size = 16):
             #Grab the plotdata
             PlotData_X = pd.DataFrame({'datetime_bins':temp['datetime_bins'][mask==True]})
             PlotData_Y = pd.DataFrame({ReadingType[ii]:temp[ReadingType[ii]+':'][mask==True]})
+            
+            if label_prefix!=None:
+                
             #Build string for legend label
             DataLabel = ALLdata.StationNames[StationNum[i]]+'-'+ReadingType[ii]
             #Plot the data
@@ -71,7 +105,7 @@ def PlotDataRange(ALLdata,StartDate,EndDate,Station,ReadingType,font_size = 16):
                 ax2.plot(PlotData_X,PlotData_Y,label=DataLabel,marker='.',ls='None',color=next(colors))
             else:
                 ax1.plot(PlotData_X,PlotData_Y,label=DataLabel,marker='.',ls='None',color=next(colors))
-    
+        """
     
     #Set the x-axis limits
     ax1.set_xlim(np.array([StartDate,EndDate]))
