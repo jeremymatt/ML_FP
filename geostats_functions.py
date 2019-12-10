@@ -284,7 +284,7 @@ def plot_data(data,x,y,variable,cmap,display_fig=True):
         plt.close()
         print('plotting to scatter plot of {} to file'.format(variable))
         
-def plot_semivariogram(differences,labels,sv_mode):
+def plot_semivariogram(differences,labels,sv_mode,plot_raw = False):
     """
     Function to plot the semivariogram
     
@@ -356,7 +356,7 @@ def plot_semivariogram(differences,labels,sv_mode):
         bin_inds = np.round(np.linspace(0,differences.shape[0],sv_mode['bins']+1)).astype(int)
     elif sv_mode['mode'] == 'user.div':
         #Convert the user-provided distance bins into indices
-        bin_inds = bin_divs2inds(differences,np.array(sv_mode['bins']),'distance',remove_empty=False)
+        bin_inds = bin_divs2inds(differences,np.array(sv_mode['bins']),'distance',remove_empty=True)
     else:
         print('WARNING: Invalid mode selection')
         
@@ -369,17 +369,37 @@ def plot_semivariogram(differences,labels,sv_mode):
     #division and append the mean distance to x and the mean delta to y
     x = []
     y = []
-    for bin in bins:
+    CI = []
+    skew = []
+    kurtosis = []
+    median = []
+    for ind,bin in enumerate(bins):
         x.append(differences[bin[0]:bin[1]]['distance'].mean())
-        y.append(differences[bin[0]:bin[1]]['delta'].mean())
+        bin_mean = differences[bin[0]:bin[1]]['delta'].mean()
+        CI.append(1.96* differences[bin[0]:bin[1]]['delta'].std())
+        y.append(bin_mean)
+        skew.append(differences[bin[0]:bin[1]]['delta'].skew())
+        kurtosis.append(differences[bin[0]:bin[1]]['delta'].kurtosis())
+        median.append(differences[bin[0]:bin[1]]['delta'].median())
         
+        plot_histograms = False
+        if plot_histograms:
+            plt.figure()
+            plt.hist(differences[bin[0]:bin[1]]['delta'],bins=50)
+            plt.title('bin:{}'.format(ind))
+            plt.xlabel('semivariance')
+            plt.ylabel('count')
+            plt.tight_layout()
+            plt.savefig('binplots/bin{}.png'.format(ind))
+            plt.close()
+    
+    bin_counts = [bin[1]-bin[0] for bin in bins]    
       
     #Open a new figure and save the figure and axis handles
     fig, ax1 = plt.subplots(figsize=(13, 11), dpi= 80, facecolor='w', edgecolor='k')
     fig_vars = (fig, ax1)
         
     #Plot the raw data points
-    plot_raw = False
     if plot_raw:
         ax1.plot(differences['distance'],differences['delta'],marker='.',color='silver',linestyle='')
     #Plot the binned averages
@@ -393,9 +413,21 @@ def plot_semivariogram(differences,labels,sv_mode):
     titlestr = '\n{} points binned into {} bins'.format(num_values,len(bins))
     plt.title(titlestr)
     
-    return fig_vars,x,y,bins
+        
+    
+    output = {}
+    output['x'] = x
+    output['y'] = y
+    output['bins'] = bins
+    output['bin_counts'] = bin_counts
+    output['CI'] = CI
+    output['skew'] = skew
+    output['kurtosis'] = kurtosis
+    output['median'] = median
+    
+    return fig_vars,output
 
-def generate_semivariogram(differences,labels,sv_mode):
+def generate_semivariogram(differences,labels,sv_mode,process_premade_bins=True,plot_raw = False):
     """
     Function to iteratively generate a semivariogram
     
@@ -436,7 +468,7 @@ def generate_semivariogram(differences,labels,sv_mode):
     makeplots=True
     while makeplots:
         #Plot the semivariogram with the current settings
-        fig_vars,x,y,bins = plot_semivariogram(differences,labels,sv_mode)
+        fig_vars,output = plot_semivariogram(differences,labels,sv_mode,plot_raw)
         
         #Show, pause, and draw the plot (required to show the plot while
         #the user is deciding what to do next)
@@ -446,7 +478,15 @@ def generate_semivariogram(differences,labels,sv_mode):
         
         #Allow user to click points on the figure to select the next bin 
         #divisions
-        getinput=True
+        if process_premade_bins:
+            #If all the user wants to do is process pre-made bins, skip 
+            #g-input and exit the makeplots loop
+            getinput = False
+            makeplots = False
+            close_fig = False
+        else:
+            getinput=True
+            
         while getinput:
             #Flag to close the figure
             close_fig = True
@@ -457,7 +497,9 @@ def generate_semivariogram(differences,labels,sv_mode):
                        '    3. \'g\' ==> click on figure to define bin divisions\n'+
                        '                 left click - add point\n'+
                        '                 right click - accept current selection\n'+
-                       '    4. \'s\' ==> save the current figure\n']
+                       '    4. \'s\' ==> save the current figure\n'+
+                       '    5. \'raw\' ==> Plot the raw data\n'+
+                       '    6. \'no_raw\' ==> Dont plot the raw data\n']
             #As the user for input
             flag = input(inp_str[0])
             
@@ -516,6 +558,14 @@ def generate_semivariogram(differences,labels,sv_mode):
         
                 #Save the completed figure
                 fig_vars[0].savefig(filename+'.png')
+            
+            #allow the user to save the figure to a filename of their choice
+            elif flag == 'raw':
+                plot_raw = True
+            
+            #allow the user to save the figure to a filename of their choice
+            elif flag == 'no_raw':
+                plot_raw = False
             else:
                 print('***WARNING***\nInvalid Selection, try again')
            
@@ -524,7 +574,7 @@ def generate_semivariogram(differences,labels,sv_mode):
         if close_fig:
             plt.close(fig_vars[0])
     
-    return x,y
+    return output
     
 def bin_divs2inds(df,bin_divs,on_col = 'distance',remove_empty=True):
     """
@@ -612,6 +662,7 @@ class FIT_EXPONENTIAL:
         self.nugget = nugget
         self.gram_type = gram_type
         self.c1 = sill-nugget
+        self.name = 'Exponential'
         
     def sample(self,x_vals):
         """
@@ -654,6 +705,7 @@ class FIT_GAUSSIAN:
         self.nugget = nugget
         self.gram_type = gram_type
         self.c1 = sill-nugget
+        self.name = 'Gaussian'
         
     def sample(self,x_vals):
         """
@@ -701,6 +753,7 @@ class FIT_SPHERICAL:
         self.nugget = nugget
         self.gram_type = gram_type
         self.c1 = sill-nugget
+        self.name = 'Spherical'
         
     def sample(self,x_vals):
         """
@@ -750,6 +803,7 @@ class FIT_LINEAR:
         self.nugget = nugget
         self.gram_type = gram_type
         self.c1 = sill-nugget
+        self.name = 'Linear'
         
     def sample(self,x_vals):
         """
@@ -788,9 +842,140 @@ class FIT_LINEAR:
         
         return model_vals
 
+class FIT_MULTI:
+    """
+    Generates a model from one or more sub-models
+    """
+    def __init__(self,gram_type):
+        self.gram_type = gram_type
+        self.models = []
+        self.transitions = []
+        self.y_offsets = []
+        
+    def add_first_model(self,model,sill,rng,nugget):
+        """
+        Adds the first model
+        
+        INPUTS
+            model - an uninitialized model object (IE GSF.FIT_LINEAR)
+            sill - the sill of the first model
+            rng - the range of the first model
+            nugget - the nugget of the first model
+            
+        OUTPUTS
+            None
+        """
+        #distance to start the first model
+        self.transitions.append(0) 
+        #Offset for the first model
+        self.y_offsets.append(0)
+        #Initialize the model
+        self.models.append(model(sill,rng,nugget,self.gram_type))
+        #Initialize the number of models in the multi-model
+        self.num_models = 1
+        self.name = 'Multimodel({})'.format(self.models[-1].name)
+        #Store the sill of the current model as the global model sill
+        self.sill = sill
+        
+    def add_next_model(self,model,sill,rng,transition):
+        """
+        Adds the first model
+        
+        INPUTS
+            model - an uninitialized model object (IE GSF.FIT_LINEAR)
+            sill - the sill of the next model
+            rng - the range of the next model
+            transition - the distance to transition to the next model
+            
+        OUTPUTS
+            None
+        """
+        #Sample the existing models at the transition point to determine the 
+        #y-value at the transition point
+        offset = self.sample(np.array([transition]))
+        #Add the transition distance to the list of transitions
+        self.transitions.append(transition)
+        #Increment the number of models
+        self.num_models += 1
+        #update the global model sill value
+        self.sill = sill
+        
+        #The nugget for the next model relative to the value of the previous 
+        #model at the transition point is 0 (forces no discontinuity)
+        nugget = 0
+        #Find the range of the next model relative to the transition distance
+        sub_rng = rng-transition
+        #Find the sill of the next model relative to the value of the previous
+        #model at the transition point
+        sub_sill = sill-offset
+        #Append the y-offset for the next model to the list of y-offsets
+        self.y_offsets.append(offset)
+        #Add the next model to the list
+        self.models.append(model(sub_sill,sub_rng,0,self.gram_type))
+        self.name = '{}-{})'.format(self.name.split(')')[0],self.models[-1].name)
+        
+    def sample(self,x_vals):
+        """
+        Samples from the model
+        
+        INPUTS
+            x_vals - array-like set of strictly increasing distances
+            
+        OUTPUTS
+            y_vals - the model predicted values at the x_values
+        """
+        
+        #Initialize an array of nan values to hold the model predicted values
+        y_vals = np.zeros(x_vals.shape)*np.nan
+        #Iterate through each model        
+        for ind,model in enumerate(self.models):
+            #If the current model is not the last model in self.models, 
+            #generate a mask of x_values that are >= the lower bound and are
+            #less than the upper bound.
+            if ind+1 < self.num_models:
+                lower_x = self.transitions[ind]
+                upper_x = self.transitions[ind+1]
+                mask = (x_vals>=lower_x)&(x_vals<upper_x)
+            #If the current model is the last model in self.models,
+            #generate a mask of x_values that are >= the lower bound
+            else:
+                lower_x = self.transitions[ind]
+                mask = (x_vals>=lower_x)
+                
+            #Generate a list of x-values that are applicable to the current
+            #model relative to the point of transition to the current model
+            temp_x = x_vals[mask]-self.transitions[ind]
+            #If there are eligible points
+            if mask.sum()>0:
+                #Sample the current model to find y-values in a coordinate
+                #system relative to the transition point
+                temp_y=model.sample(temp_x)
+                #Update the y_values with the current sample values shifted
+                #by the y-value of the previous model at the transition point
+                y_vals[mask] = np.array(temp_y).ravel()+self.y_offsets[ind]
+                
+            
+        return y_vals
+    
+    def summary(self):
+        """
+        Prints a summary of the model
+        """
+        print('Model Summary of {}'.format(self.name))
+        for ind,model in enumerate(self.models):
+            print('\nModel {}: {}'.format(str(ind).zfill(2),model.name))
+            if ind == self.num_models-1:
+                print('  Valid distances: >{}'.format(self.transitions[ind]))
+            else:
+                print('  Valid distances: {} - {}'.format(self.transitions[ind],self.transitions[ind+1]))
+                
+            if ind==0:
+                print('           Nugget: {}'.format(model.nugget))
+            
+            print('            Range: {}'.format(model.rng+self.transitions[ind]))
+            print('             Sill: {}'.format(model.sill+self.y_offsets[ind]))
 
-
-def plot_model_fit(data,model,labels,title):
+def plot_model_fit(data,model,labels,title, plot_CI = True, plot_median = False, ylim = 'auto'):
     """
     Plots the semivariogram data and the fit model
     
@@ -801,22 +986,92 @@ def plot_model_fit(data,model,labels,title):
         title - figure title
     """
     #Unpack the semivariogram points
-    x,y = data
+    x = np.array(data['x'])
+    y = np.array(data['y'])
+    counts = np.array(data['bin_counts'])
+    CI = np.array(data['CI'])
+    median = np.array(data['median'])
     #Unpack the model points
     model_x,model_y = model
     
+    lower = y-CI
+    upper = y+CI
+    
     #open a new figure
-    plt.figure()
+    #Initialize the figure
+    fig, ax1 = plt.subplots(figsize=(15, 10), dpi= 80, facecolor='w', edgecolor='k')
+    ax2 = ax1.twinx()
+    ax2.grid(False)
+    
+    ax1.set_zorder(ax2.get_zorder()+1) # put ax in front of ax2
+    ax1.patch.set_visible(False) # hide the 'canvas'
+    #plot bar chart of the number of points
+    ax2.bar(x,counts,color = 'silver',edgecolor = 'silver',zorder = 1)
     #Plot the binned semivariance points
-    plt.plot(x,y,'*',label = 'binned data')
+    ax1.plot(x,y,'*',markersize = 14,label = 'binned data',zorder = 3)
+    
+    if plot_CI:
+        #Plot lines at +/- 1 std deviation and fill between
+        ax1.plot(x,upper,color = 'springgreen',linewidth=1.0,label='outer')
+        ax1.plot(x,lower,color = 'springgreen',linewidth=1.0,label='outer')
+        #Add shading between the +/- stddev lines
+        ax1.fill_between(x,lower,upper,alpha = .5, color='springgreen',label='95% CI')
+    
+    if plot_median:
+        ax1.plot(x,median,'r--',label = 'median')
+    
+    
+    
     #plot the model
-    plt.plot(model_x,model_y,label = 'model fit')
+    ax1.plot(model_x,model_y,label = 'model fit',zorder = 2)
     #Add axis labels and a figure title
-    plt.xlabel(labels['xlabel'])
-    plt.ylabel(labels['ylabel'])
+    ax1.set_xlabel(labels['xlabel'])
+    ax1.set_ylabel(labels['ylabel'])
+    ax2.set_ylabel('Data points per bin')
     plt.title(title)
     #add a legend
-    plt.legend()
+     
+    #Get lists of all handles and labels 
+    handles, labels = ax1.get_legend_handles_labels()
+    #Mask off the labels that should not be included in the legend (basically anything not labeled 'outer')
+    mask = [not x=='outer' for x in labels]
+    #Find the index numbers of the mask values to keep
+    m2 = np.where(mask)[0]
+    #Generate a list of handles and labels
+    la = [labels[index] for index in m2]
+    #Generate a list of handles
+    ha = [handles[index] for index in m2]
+    
+    #Add the legend to the figure
+    ax1.legend(ha, la, loc='upper left')
+    
+    cur_ylim = ax1.get_ylim()
+    cur_xlim = ax1.get_xlim()
+    new_lim = []
+    #Calculate padding value if 'data' is used to determine plot bounds
+    padding = 0.1*(y.max()-y.min())
+    if type(ylim) in [list,tuple]:
+        
+        for ind,lim in enumerate(ylim):
+            if lim == 'auto':
+                new_lim.append(cur_ylim[ind])
+            elif lim == 'data':
+                if ind == 0:
+                    new_lim.append(y.min()-padding)
+                if ind == 1:
+                    new_lim.append(y.max()+padding)
+            else:
+                new_lim.append(lim)
+    elif ylim == 'data':
+        new_lim.append(y.min()-padding)
+        new_lim.append(y.max()+padding)
+    elif ylim == 'auto':
+        new_lim = cur_ylim
+    breakhere=1
+    ax1.set_ylim(new_lim)
+    ax1.set_xlim([0,cur_xlim[1]])
+    
+
     #Extract the name of the model fromthe title
     model_name = title.split(' ')[0]
     #save the figure
@@ -966,9 +1221,9 @@ class ORDINARY_KRIGING:
         #Loop through each grid point
         for target in grid_points:
             #Generate distances from the target to all all the fixed points
-            target_dist = np.matrix(dist_to_target(self.data,self.x,self.y,target))
+            target_dist = dist_to_target(self.data,self.x,self.y,target)
             #Get the samples from the model
-            C_io = self.model.sample(target_dist)
+            C_io = np.matrix(self.model.sample(target_dist))
             #Add the 1 for the lagrange parameter
             C_io = np.row_stack((C_io.T,[[1]]))
             #Calculate the weights
@@ -1006,3 +1261,84 @@ class ORDINARY_KRIGING:
             
         return Z,EV,Weights
         
+    
+def plot_model_1D(data,plot_x,plot_y,plot_y2,labels):
+    """
+    Plots the semivariogram data and the fit model
+    
+    INPUTS
+        data - dataframe holding the kriged data
+        plot_x - the header of the values to be plotted on the x axis
+        plot_y - the header of the values to be plotted on the primary y axis
+        plot_y2 - the header of the values to be plotted on the primary 2nd y axis
+        labels - dict containing:
+                'xlabel' - x-axis label
+                'ylabel' - primary y-axis label
+                'data_label' - the label for the primary data
+                'title' - Figure title 
+                'filename' - filename to save the figure to
+    """
+    #Unpack the semivariogram points
+    x = np.array(data[plot_x])
+    y = np.array(data[plot_y])
+    y2 = np.array(data[plot_y2])
+    
+    
+    
+    #open a new figure
+    #Initialize the figure
+    fig, ax1 = plt.subplots(figsize=(15, 8), dpi= 80, facecolor='w', edgecolor='k')
+    ax2 = ax1.twinx()
+    ax2.grid(False)
+    
+    ax1.set_zorder(ax2.get_zorder()+1) # put ax in front of ax2
+    ax1.patch.set_visible(False) # hide the 'canvas'
+    #plot bar chart of the number of points
+    ax2.plot(x,y2,'r--',label = 'Error variance',zorder = 1)
+    #Plot the binned semivariance points
+    ax1.plot(x,y,'k-',label = labels['data_label'],zorder = 3)
+    
+    mask = data['type'] == 'station'
+    
+    ax1.plot(x[mask],y[mask],'g*',markersize=14,label='Station')
+    
+     
+    cur_ylim = list(ax1.get_ylim())
+    cur_ylim[1] *= 1.2
+    ax1.set_ylim(cur_ylim)
+    
+    xy = list(zip(x[mask],y[mask]))
+    label_zip = list(zip(data.loc[mask,'point'],xy))
+    bbox = dict(boxstyle="round", fc="0.8")
+    
+    for string,xy in label_zip:
+        text = ax1.annotate(string,xy,
+#                            xytext = (xy[0],0.85*cur_ylim[1]),
+                            xytext = (-5,15),
+                            textcoords = 'offset points',
+                            rotation = 90,fontsize = 14)
+        text.set_alpha(.75)
+    
+    
+    #Add axis labels and a figure title
+    ax1.set_xlabel(labels['xlabel'])
+    ax1.set_ylabel('Speed (mph)')
+    ax2.set_ylabel('Error Variance')
+    plt.title(labels['title'])
+    #add a legend
+    
+    
+    #Get lists of all handles and labels 
+    handles, leg_labels = ax1.get_legend_handles_labels()
+    
+    h2,l2 = ax2.get_legend_handles_labels()
+    handles.extend(h2)
+    leg_labels.extend(l2)
+    
+    ax1.legend(handles,leg_labels)
+    
+    
+    #save the figure
+    plt.savefig(labels['filename'])
+    
+    return (ax1,ax2)
