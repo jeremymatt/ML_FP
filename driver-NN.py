@@ -22,30 +22,39 @@ ALLdata.LoadData(LoadType,destdir)
 ALLdata.ConvertTimeStrToDatetime()
 #ALLdata.Check_DST()
 
-ALLdata.calc_wind_u_v(scale_by_speed=False)
 
 label_file = 'data_labels_all.csv'
 ALLdata.label_data(label_file)
 
+#NOTE: If U/V labels are required, label the data set
+#before calculating u and v
+ALLdata.calc_wind_u_v(scale_by_speed=False)
 
-num_samples = 1000
+
+dirNormType = 'minmax'
+ALLdata.NormalizeVals('temp',dirNormType)
+ALLdata.NormalizeVals('speed',dirNormType)
+ALLdata.NormalizeVals('solar',dirNormType)
+
+num_samples = 20000
 duration = '00:30:00'
 start = '2017-01-01 00:00:00'
 end = '2017-03-01 00:00:00'
-variables = ['solar:','temp:','u','v']
-stations = ALLdata.WSdata[:8]
+variables = ['solar:','temp:','speed:','dir:','u','v']
+stations = ALLdata.WSdata[:7]
 samples, x_headers,y_headers = ALLdata.gen_multistep_samples(stations,start,end,num_samples,duration,variables)
 
 mask = samples['sum_t1-n_labels']==0
 
-samples.to_excel('samples_1k_30min.xlsx')
+samples.to_excel('samples_20k_30min_prenorm.xlsx')
 
 
-start = '2017-02-03 00:00:00'
-end = '2017-02-06 00:00:00'
-station = ALLdata.WSdata[4]
+start = '2017-01-01 00:00:00'
+end = '2017-03-01 00:00:00'
+station = ALLdata.WSdata[8]
 samples_test, x_headers,y_headers = ALLdata.gen_series_multistep_samples(station,start,end,duration,variables)
 
+samples_test.to_excel('{}_samples_to_check_prenorm.xlsx'.format(station.name))
 
 """
 num_timesteps = int(X.shape[1]/Y.shape[1])
