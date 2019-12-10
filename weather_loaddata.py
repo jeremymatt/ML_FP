@@ -560,6 +560,19 @@ class WEATHER_LOADDATA:
             station.data_binned['u'] = u
             station.data_binned['v'] = v
             
+            l1 = 'label|speed:'
+            l2 = 'label|dir:'
+            test1 = l1 in station.data_binned.keys()
+            test2 = l2 in station.data_binned.keys()
+            
+            if test1 & test2:
+                uv_label = station.data_binned[l1]+station.data_binned[l2]
+                uv_label = uv_label>0
+                uv_label = uv_label.astype(int)
+                station.data_binned['label|u'] = uv_label
+                station.data_binned['label|v'] = uv_label
+            
+            
     def load_xyz(self,filename):
         """
         Adds northing/easting data to each station object
@@ -573,7 +586,7 @@ class WEATHER_LOADDATA:
             station.easting = xyz.loc[station.name,'easting']
             station.elevation = xyz.loc[station.name,'elevation']
             
-    def get_krig_data(self,stations,start,end,binned=True):
+    def get_krig_data(self,stations,start,end,binned=True,scaler_vars=None):
         """
         Extracts all parameter readings from the stations between the start
         and end time (inclusive of the start and end times).  if start==end, 
@@ -583,8 +596,12 @@ class WEATHER_LOADDATA:
             stations - a list of station objects (IE ALLdata.WSdata)
             start - start date/time string in the format "yyyy-mm-dd hh:mm:ss"
             end - end date/time string in the format "yyyy-mm-dd hh:mm:ss"
+            variables - list of variables to include in the output
             binned - If true (default) extract binned data.  Otherwise extracts 
                     the raw data
+            scaler - default (None) = no scaling.  Otherwise a tuple of:
+                        1. A fitted scikit learn scaler
+                        2. A list of variables to scale
                     
         OUTPUTS:
             data - pandas dataframe of the data with station name, northing, 
@@ -596,9 +613,14 @@ class WEATHER_LOADDATA:
         
         for station in stations:
             if binned:
-                station_data = station.data_binned
+                station_data = station.data_binned.copy()
             else:
-                station_data = station.data
+                station_data = station.data.copy()
+                
+            if scaler_vars != None:
+                variables = scaler_vars[1]
+                scaler = scaler_vars[0]
+                station_data[variables] = scaler.transform(station_data[variables])
             
             #Generate a mask that matches the timeframe of interest
             m1 = station_data['datetime_bins']>=start
