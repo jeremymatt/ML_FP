@@ -44,6 +44,12 @@ label_file = 'data_labels_all.csv'
 ALLdata.label_data(label_file)
 
 
+dirNormType = 'minmax'
+ALLdata.NormalizeVals('temp',dirNormType)
+ALLdata.NormalizeVals('speed',dirNormType)
+ALLdata.NormalizeVals('solar',dirNormType)
+
+
 num_samples = 100
 duration = '00:15:00'
 start = '2017-01-01 00:00:00'
