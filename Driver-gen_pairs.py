@@ -59,7 +59,7 @@ data = ALLdata.WSdata[0].data_binned.copy()
 data['hr'] = data['datetime_bins'].dt.hour
 data['min'] = data['datetime_bins'].dt.minute
 
-m1 = data['datetime_bins']>start
+m1 = data['datetime_bins']>=start
 m2 = data['datetime_bins']<end
 m3 = data['hr']>=start_hour
 m4 = data['hr']<=end_hour
@@ -104,7 +104,7 @@ if generate:
         #Generate a dataframe holding the data between the start and end times
         data = ALLdata.get_krig_data(stations,cur_time,cur_time,scaler_vars = scaler_vars)
         
-        pairs = GSF.extract_pairs(data, x, y, variables)
+        pairs = GSF.extract_pairs(data, x, y, variables, unordered=True)
         
         paired_data = paired_data.append(pairs)
         

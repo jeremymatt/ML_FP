@@ -127,7 +127,7 @@ for ind,var in enumerate(variables):
 
 
 
-filename = 'Station008_samples_to_check_prenorm.xlsx'
+filename = 'Station008_samples_to_check.xlsx'
 test_samples = pd.read_excel(filename)
 
 #X_scale = allx_scaler.transform(test_samples[variable_headers])

@@ -1175,8 +1175,8 @@ class ORDINARY_KRIGING:
         INPUTS
             model - The model object to draw samples from
             data - the data matrix
-            x - the column name of the x-values
-            y - the column name of the y-values
+            x - (string) the column name of the x-values
+            y - (string) the column name of the y-values
         """
         self.sill = model.sill
         self.data = data

@@ -36,8 +36,8 @@ ALLdata.NormalizeVals('temp',dirNormType)
 ALLdata.NormalizeVals('speed',dirNormType)
 ALLdata.NormalizeVals('solar',dirNormType)
 
-num_samples = 20000
-duration = '00:30:00'
+num_samples = 5
+duration = '00:05:00'
 start = '2017-01-01 00:00:00'
 end = '2017-03-01 00:00:00'
 variables = ['solar:','temp:','speed:','dir:','u','v']
@@ -46,8 +46,8 @@ samples, x_headers,y_headers = ALLdata.gen_multistep_samples(stations,start,end,
 
 mask = samples['sum_t1-n_labels']==0
 
-samples.to_excel('samples_20k_30min_prenorm.xlsx')
-
+samples.to_excel('demo.xlsx')
+"""
 
 start = '2017-01-01 00:00:00'
 end = '2017-03-01 00:00:00'
@@ -55,6 +55,7 @@ station = ALLdata.WSdata[8]
 samples_test, x_headers,y_headers = ALLdata.gen_series_multistep_samples(station,start,end,duration,variables)
 
 samples_test.to_excel('{}_samples_to_check_prenorm.xlsx'.format(station.name))
+"""
 
 """
 num_timesteps = int(X.shape[1]/Y.shape[1])
